@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { useAuth } from "@/lib/auth-context"
+import { useAuth } from "@/components/providers/AuthProvider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,6 +21,7 @@ const benefits = [
 export default function SignUpPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [name, setName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const { signUp } = useAuth()
@@ -35,11 +36,13 @@ export default function SignUpPage() {
     }
     if (password.length < 6) {
       setError("Password must be at least 6 characters.")
-      return
+      return;
     }
     setIsLoading(true)
     try {
       await signUp(email, password)
+      // Put rate limits right here
+
       router.push("/onboarding")
     } catch {
       setError("Something went wrong. Please try again.")
@@ -87,6 +90,17 @@ export default function SignUpPage() {
                   {error}
                 </div>
               )}
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="email">Full Name</Label>
+                <Input
+                    id="name"
+                    type="text"
+                    placeholder="John Smith"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                />
+              </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="email">Work email</Label>
                 <Input

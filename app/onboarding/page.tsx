@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/lib/auth-context"
+import { useAuth } from "@/components/providers/AuthProvider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -31,7 +31,7 @@ const tonePresets = [
 export default function OnboardingPage() {
   const [step, setStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const { user, loading, completeOnboarding } = useAuth()
+  const { user, userLoading, profile } = useAuth()
   const router = useRouter()
 
   const [data, setData] = useState({
@@ -47,15 +47,15 @@ export default function OnboardingPage() {
   })
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!userLoading && !user) {
       router.push("/sign-in")
     }
-    if (!loading && user?.onboardingComplete) {
+    if (!userLoading && profile?.orgId) {
       router.push("/app")
     }
-  }, [loading, user, router])
+  }, [userLoading, user, router])
 
-  if (loading || !user) {
+  if (userLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

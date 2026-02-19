@@ -39,7 +39,7 @@ export type CallType = "missed" | "answered" | "voicemail"
 export type FollowUpStatus = "auto-sms" | "pending" | "replied" | "none"
 
 export interface Call {
-  id: number
+  id: string
   caller: string
   phone: string
   date: string
@@ -53,7 +53,7 @@ export interface Call {
 export type ConversationStatus = "new" | "in_progress" | "booked" | "lost" | "spam" | "opted_out"
 
 export interface Conversation {
-  id: number
+  id: string
   name: string
   phone: string
   lastMessage: string
@@ -65,8 +65,8 @@ export interface Conversation {
 
 // ── Message ──────────────────────────────────────────
 export interface Message {
-  id: number
-  conversationId: number
+  id: string
+  conversationId: string
   sender: "them" | "us" | "system"
   text: string
   time: string

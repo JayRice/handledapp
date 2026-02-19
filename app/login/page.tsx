@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { useAuth } from "@/lib/auth-context"
+import { useAuth } from "@/components/providers/AuthProvider"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,23 +15,32 @@ export default function SignInPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
-  const { signIn } = useAuth()
+  const [error, setError] = useState<{message: string, action?: (() => void) | null}>({message: "", action: null})
+  const { signIn, resendVerification } = useAuth()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError("")
+    setError({message:""})
     if (!email || !password) {
-      setError("Please fill in all fields.")
+      setError({message: "Please fill in all fields."})
       return
     }
     setIsLoading(true)
     try {
-      await signIn(email, password)
+      const result = await signIn(email, password);
+
+      console.log("error: ", result)
+      if (result.error?.message == "Email not confirmed"){
+        return setError({message: "Email not confirmed, go check your inbox to continue", action: () => {
+            resendVerification(email);
+        }})
+      }
+      if (result.error){return setError({message: result.error.message.split(" ").slice(0,25).join(" ")})}
+      // Put rate limits right here
       router.push("/app")
     } catch {
-      setError("Invalid credentials. Please try again.")
+      setError({message: "Invalid credentials. Please try again."})
     } finally {
       setIsLoading(false)
     }
@@ -64,10 +73,13 @@ export default function SignInPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              {error && (
-                <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                  {error}
-                </div>
+              {error.message && (
+                  (!error.action ? <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {error.message}
+                </div>:
+                <a onClick={error.action} className="cursor-pointer rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {error.message}
+                </a>)
               )}
               <div className="flex flex-col gap-2">
                 <Label htmlFor="email">Email</Label>
