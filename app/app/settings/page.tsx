@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { useAuth } from "@/lib/auth-context"
-import { useDevMode } from "@/components/handled/providers/dev-mode-provider"
+import { useAuth } from "@/components/providers/AuthProvider"
+import { useDevMode } from "@/components/providers/dev-mode-provider"
 import { useAppStore } from "@/lib/store/app-store"
 import { ComingSoonButton } from "@/components/handled/common/coming-soon"
 import { toast } from "sonner"
@@ -56,18 +56,18 @@ import {
 
 // ── Profile Tab ──────────────────────────────────────────────
 function ProfileTab() {
-  const { user, updateUser } = useAuth()
-  const [name, setName] = useState(user?.name || "")
-  const [email] = useState(user?.email || "")
+  const { profile, updateProfile } = useAuth()
+  const [name, setName] = useState(profile?.name || "")
+  const [email] = useState(profile?.email || "")
   const [phone, setPhone] = useState("")
   const [saving, setSaving] = useState(false)
 
   function handleSave() {
     setSaving(true)
-    setTimeout(() => {
-      updateUser({ name })
+    setTimeout(async () => {
+      await updateProfile({ name })
       setSaving(false)
-      toast.success("Profile updated (demo)")
+      toast.success("Profile updated")
     }, 600)
   }
 
@@ -108,7 +108,7 @@ function ProfileTab() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="timezone">Timezone</Label>
-              <Select defaultValue={user?.timezone || "america-new_york"}>
+              <Select defaultValue={profile?.timezone || "america-new_york"}>
                 <SelectTrigger id="timezone" className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="america-new_york">Eastern (ET)</SelectItem>
@@ -172,10 +172,10 @@ function ProfileTab() {
 
 // ── Business Tab ──────────────────────────────────────────────
 function BusinessTab() {
-  const { user, updateUser } = useAuth()
-  const [orgName, setOrgName] = useState(user?.orgName || "")
-  const [trade, setTrade] = useState(user?.trade || "hvac")
-  const [address, setAddress] = useState("")
+  const { user, updateProfile, organization } = useAuth()
+  const [orgName, setOrgName] = useState(organization?.name || "")
+  const [trade, setTrade] = useState(organization?.trade || "hvac")
+  const [address, setAddress] = useState(organization?.address || "")
   const [website, setWebsite] = useState("")
   const [saving, setSaving] = useState(false)
 

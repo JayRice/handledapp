@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { useDevMode } from "@/components/handled/providers/dev-mode-provider"
+import { useDevMode } from "@/components/providers/dev-mode-provider"
 import { useAppStore } from "@/lib/store/app-store"
 import {
   QUICK_REPLIES,
@@ -11,7 +11,7 @@ import {
   STATUS_LABELS,
   FILTERS,
 } from "@/lib/mock/seed-data"
-import type { ConversationStatus } from "@/types/handled"
+import type { ConversationStatus, Message } from "@/types/handled"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -55,19 +55,24 @@ import {
   ArrowLeft,
 } from "lucide-react"
 import { toast } from "sonner"
+import {useAuth} from "@/components/providers/AuthProvider";
 
 export default function InboxPage() {
   const { devMode } = useDevMode()
+  const { organization} = useAuth();
   const searchParams = useSearchParams()
   const router = useRouter()
 
   const conversations = useAppStore((s) => s.conversations)
+
+
   const messages = useAppStore((s) => s.messages)
-  const setConversationStatus = useAppStore((s) => s.setConversationStatus)
   const addMessage = useAppStore((s) => s.addMessage)
 
+  const setConversationStatus = useAppStore((s) => s.setConversationStatus)
+
   const paramId = searchParams.get("c")
-  const [activeConvo, setActiveConvo] = useState<number | null>(paramId ? Number(paramId) : null)
+  const [activeConvo, setActiveConvo] = useState<string | null>(null)
   const [filter, setFilter] = useState("All")
   const [search, setSearch] = useState("")
   const [composer, setComposer] = useState("")
@@ -75,10 +80,11 @@ export default function InboxPage() {
   const [mobileShowThread, setMobileShowThread] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+
   useEffect(() => {
     const cParam = searchParams.get("c")
     if (cParam) {
-      setActiveConvo(Number(cParam))
+      setActiveConvo(cParam)
       setMobileShowThread(true)
     }
   }, [searchParams])
@@ -87,13 +93,13 @@ export default function InboxPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, activeConvo])
 
-  function selectConversation(id: number) {
+  function selectConversation(id: string) {
     setActiveConvo(id)
     setMobileShowThread(true)
     router.replace(`/app/inbox?c=${id}`, { scroll: false })
   }
 
-  function handleStatusChange(id: number, status: ConversationStatus) {
+  function handleStatusChange(id: string, status: ConversationStatus) {
     setConversationStatus(id, status)
     toast.success(`Status changed to ${STATUS_LABELS[status]} (demo)`)
   }
@@ -101,10 +107,9 @@ export default function InboxPage() {
   function handleSend() {
     if (!composer.trim() || !activeConvo) return
     addMessage(activeConvo, {
-      conversationId: activeConvo,
-      sender: "us",
+      conversation_id: activeConvo,
       text: composer.trim(),
-      time: new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+      created_at: (new Date()).toISOString(),
     })
     setComposer("")
     toast.success("Message sent (demo)")
@@ -136,7 +141,7 @@ export default function InboxPage() {
     }
     if (search) {
       const q = search.toLowerCase()
-      return c.name.toLowerCase().includes(q) || c.phone.includes(q)
+      return c.caller_name?.toLowerCase().includes(q) || c.caller_number?.includes(q)
     }
     return true
   })
@@ -195,19 +200,19 @@ export default function InboxPage() {
                 )}
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground">
-                  {convo.name.split(" ").map((n) => n[0]).join("")}
+                  {convo.caller_name?.split(" ").map((n) => n[0]).join("")}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <span className={cn("text-sm font-medium", convo.unread ? "text-foreground" : "text-muted-foreground")}>{convo.name}</span>
-                    <span className="text-[10px] text-muted-foreground">{convo.time}</span>
+                    <span className={cn("text-sm font-medium", convo.unread ? "text-foreground" : "text-muted-foreground")}>{convo.caller_name}</span>
+                    <span className="text-[10px] text-muted-foreground">{convo.last_message_at}</span>
                   </div>
-                  <p className="truncate text-xs text-muted-foreground">{convo.lastMessage}</p>
+                  <p className="truncate text-xs text-muted-foreground">{convo.last_message_preview}</p>
                   <div className="mt-1 flex items-center gap-1.5">
                     <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", STATUS_COLORS[convo.status])}>
                       {STATUS_LABELS[convo.status]}
                     </Badge>
-                    <span className="text-[10px] text-muted-foreground">{convo.trade}</span>
+                    <span className="text-[10px] text-muted-foreground">{organization?.trade}</span>
                   </div>
                 </div>
                 {convo.unread && <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />}
@@ -239,8 +244,8 @@ export default function InboxPage() {
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div>
-                  <h2 className="text-sm font-semibold text-foreground">{active.name}</h2>
-                  <p className="text-xs text-muted-foreground">{active.phone} - {active.trade}</p>
+                  <h2 className="text-sm font-semibold text-foreground">{active.caller_name}</h2>
+                  <p className="text-xs text-muted-foreground">{active.caller_number} </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -309,8 +314,8 @@ export default function InboxPage() {
                     </div>
                   )}
                   <div className="mt-1 flex items-center gap-1.5">
-                    <span className="text-[10px] text-muted-foreground">{msg.time}</span>
-                    {msg.auto && (
+                    <span className="text-[10px] text-muted-foreground">{msg.created_at}</span>
+                    {msg.source == "automation" && (
                       <Badge variant="outline" className="text-[10px] px-1 py-0 border-primary/30 text-primary">Auto</Badge>
                     )}
                   </div>
@@ -387,7 +392,7 @@ export default function InboxPage() {
           <DialogHeader>
             <DialogTitle>Opt out this contact?</DialogTitle>
             <DialogDescription>
-              This will stop all automated messages to {active?.name}. They will be added to the opt-out list. This action can be reversed from the opt-outs page.
+              This will stop all automated messages to {active?.caller_number}. They will be added to the opt-out list. This action can be reversed from the opt-outs page.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

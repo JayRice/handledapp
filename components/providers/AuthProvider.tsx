@@ -7,17 +7,22 @@ import { useRouter } from 'next/navigation';
 import {Organization, Profile} from "@/types/handled";
 import {useToast} from "@/hooks/use-toast";
 import { toast } from "sonner"
+import {OrganizationInsert} from "@/types/db";
+import {OnboardingData} from "@/app/onboarding/page";
 
 
 interface AuthContextType {
     user: User | null;
     userLoading: boolean;
     profileLoading: boolean;
-    signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
+    signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
     signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
     resendVerification: (email: string) => Promise<{ error: Error | null }>;
+    completeOnboarding: (onboradingData: OnboardingData) => Promise<{ error: Error | null }>;
     signOut: () => Promise<void>;
     profile: Profile | null;
+    updateProfile: (profileUpdate: Partial<Profile>) => Promise<{ error: Error | null }>;
+    organization: Organization | null;
 
 }
 
@@ -36,11 +41,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
 
 
-    // ✅ stable instance
     const supabase = useMemo(() => createClient(), []);
 
     useEffect(() => {
-        if(!user) {return;}
+        if(!user || !supabase) {return;}
 
         async function getProfile(){
             if(!user) {return;}
@@ -49,10 +53,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const {data: profileData, error: profileError} =
                 await supabase.from("profiles")
                     .select("*").eq("id", user.id)
-                    .single();
+                    .maybeSingle();
 
 
-            console.log("profile: ", profileData)
+
 
             if (profileError) {
                 toast.error(profileError.message);
@@ -66,18 +70,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         getProfile();
 
-    }, [user]);
+    }, [user, supabase]);
     useEffect(() => {
-        if (!user || !profile || !profile?.orgId) {return};
+        if (!user || !profile || !profile?.org_id) {return};
 
 
         async function getOrganization(){
-            if (!user || !profile || !profile?.orgId) {return};
+            if (!user || !profile || !profile?.org_id) {return};
 
             setOrganizationLoading(true);
             const {data: organData, error: organError} =
                 await supabase.from("organizations")
-                    .select("*").eq("id", profile.orgId)
+                    .select("*").eq("id", profile.org_id)
                     .single();
 
             if (organError) {
@@ -172,7 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
     }
-    const signUp = async (email: string, password: string) => {
+    const signUp = async (email: string, password: string, name: string) => {
         try {
             const { data, error } = await supabase.auth.signUp({
                 email,
@@ -193,11 +197,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (!user) return { error: null };
 
-            // Create profile row
-            await supabase.from("profiles").insert({
-                id: user.id,
-                email: user.email,
-            });
+            await fetch("/api/onboarding/profile", {
+                method: "POST",
+                body: JSON.stringify({
+                    name
+                })
+            })
 
             return { error: null };
 
@@ -207,6 +212,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
 
+    const completeOnboarding = async (onboardingData: OnboardingData) => {
+       try {
+           const res = await fetch(`/api/onboarding/setup/`, {
+               method: "POST",
+               body: JSON.stringify({
+                   onboardingData
+               })
+           })
+
+           const telephoneRes = await fetch(`/api/telephony/provision-number`, {
+               method: "POST",
+               body: JSON.stringify({
+                   onboardingData
+               })
+           })
+
+           return {error: null}
+       } catch (error) {
+           return { error: error as Error };
+       }
+
+
+    }
+
+    const updateProfile = async (profileData: Partial<Profile>) => {
+        try {
+            const res = await fetch(`/api/profile/update/`, {
+                method: "POST",
+                body: JSON.stringify({
+                    profileData
+                })
+            })
+
+            return {error: null}
+        } catch (error) {
+            return { error: error as Error };
+        }
+
+
+    }
+
+
 
     const signOut = async () => {
         await supabase.auth.signOut();
@@ -214,7 +261,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, userLoading, profileLoading, signIn, signOut, signUp, resendVerification, profile }}>
+        <AuthContext.Provider value={{ user, userLoading, profileLoading, signIn, signOut, signUp, resendVerification, profile, completeOnboarding, organization, updateProfile}}>
             {children}
         </AuthContext.Provider>
     );

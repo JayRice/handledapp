@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient} from '@/lib/supabase/server'
+import { supabaseAdmin} from '@/lib/supabase/supabaseAdmin'
+
 import { logger } from '@/lib/utils/logger'
 import { formatE164 } from '@/lib/utils/phone'
+import {Organization, Profile} from "@/types/handled";
+import {ProfileInsert} from "@/types/db";
 
 export async function POST(request: NextRequest) {
   try {
-    const authSupabase = await createClient()
+    const authSupabase = await createSupabaseServerClient()
 
     const {
       data: { user },
@@ -16,44 +20,45 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
+    console.log("bodY: ", body)
     const {
       businessName,
-      ownerName,
-      ownerEmail,
-      forwardingNumber,
       trade,
       timezone,
-      tonePreset,
-    } = body
+    } = body.onboardingData
 
-    if (!businessName || !ownerName || !ownerEmail || !forwardingNumber) {
+    if (!businessName) {
+      console.log("missing required fields")
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       )
     }
 
-    const formattedPhone = formatE164(forwardingNumber)
-    if (!formattedPhone) {
-      return NextResponse.json(
-        { error: 'Invalid phone number' },
-        { status: 400 }
-      )
-    }
+    // const {data: profile, error: profError} = await authSupabase.from("profiles").select("*").eq("id", user.id);
+    //
+    // if (profError) {
+    //   logger.error('Failed to create profile', {
+    //     error: profError.message,
+    //     userId: user.id,
+    //   })
+    //   return NextResponse.json(
+    //       { error: 'Failed to create profile' },
+    //       { status: 500 }
+    //   )
+    // }
 
-    const supabase = createServiceClient()
+
+    const supabase = supabaseAdmin
+
 
     const { data: org, error: orgError } = await supabase
       .from('organizations')
       .insert({
         name: businessName,
-        owner_name: ownerName,
-        owner_email: ownerEmail,
-        owner_phone: formattedPhone,
-        trade: trade || null,
+        trade: trade.toLowerCase() || null,
         timezone: timezone || 'America/New_York',
-        tone_preset: tonePreset || 'professional',
-      } as any)
+      } as Organization)
       .select()
       .single()
 
@@ -68,19 +73,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { error: profileError } = await supabase.from('profiles').insert({
-      id: user.id,
-      organization_id: (org as any).id,
+    console.log("org id: ", (org as Organization).id)
+    const { error: profileError } = await supabase.from('profiles').update({
+      org_id: (org as Organization).id,
       role: 'owner',
-    } as any)
+    } as ProfileInsert).eq("id", user.id)
 
     if (profileError) {
-      logger.error('Failed to create profile', {
+      logger.error('Failed to update profile', {
         error: profileError.message,
         userId: user.id,
       })
       return NextResponse.json(
-        { error: 'Failed to create profile' },
+        { error: 'Failed to update profile' },
         { status: 500 }
       )
     }
@@ -92,7 +97,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       organizationId: (org as any).id,
-      forwardToNumber: formattedPhone,
     })
   } catch (error) {
     logger.error('Onboarding setup error', {

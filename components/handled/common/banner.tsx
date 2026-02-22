@@ -4,9 +4,9 @@ import { X, Info, AlertTriangle, AlertCircle, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import type { AppBanner, BannerVariant } from "@/types/handled"
+import type { AppBanner } from "@/types/handled"
 
-const variantConfig: Record<BannerVariant, { icon: typeof Info; bg: string; text: string; border: string }> = {
+const variantConfig: Record<AppBanner["variant"], { icon: typeof Info; bg: string; text: string; border: string }> = {
   info: { icon: Info, bg: "bg-blue-500/10", text: "text-blue-500", border: "border-blue-500/20" },
   warn: { icon: AlertTriangle, bg: "bg-amber-500/10", text: "text-amber-500", border: "border-amber-500/20" },
   error: { icon: AlertCircle, bg: "bg-destructive/10", text: "text-destructive", border: "border-destructive/20" },
@@ -26,12 +26,12 @@ export function Banner({ banner, onDismiss }: BannerProps) {
     <div className={cn("flex items-center justify-center gap-2 px-4 py-1.5 text-xs font-medium border-b", config.bg, config.text, config.border)}>
       <Icon className="h-3 w-3 shrink-0" />
       <span>{banner.message}</span>
-      {banner.action && (
+      {banner.action_href && (
         <Link
-          href={banner.action.href}
+          href={banner.action_href}
           className="underline underline-offset-2 font-semibold hover:opacity-80"
         >
-          {banner.action.label}
+          {banner.is_active}
         </Link>
       )}
       {banner.dismissible && onDismiss && (
@@ -55,7 +55,7 @@ interface BannerStackProps {
 }
 
 export function BannerStack({ banners, onDismiss }: BannerStackProps) {
-  if (banners.length === 0) return null
+  if ( banners?.length === 0) return null
   return (
     <div className="flex flex-col">
       {banners.map((b) => (

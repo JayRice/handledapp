@@ -1,7 +1,7 @@
 "use client"
 
-import { useAuth } from "@/lib/auth-context"
-import { useDevMode } from "@/components/handled/providers/dev-mode-provider"
+import { useAuth } from "@/components/providers/AuthProvider"
+import { useDevMode } from "@/components/providers/dev-mode-provider"
 import { useAppStore } from "@/lib/store/app-store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,11 +25,11 @@ interface TopbarProps {
 }
 
 export function Topbar({ onMobileMenuToggle }: TopbarProps) {
-  const { user, signOut } = useAuth()
+  const { user, profile, signOut } = useAuth()
   const { devMode, setDevMode, isDev } = useDevMode()
   const conversations = useAppStore((s) => s.conversations)
   const unreadCount = conversations.filter((c) => c.unread).length
-  const initials = user?.name?.slice(0, 2).toUpperCase() || "U"
+  const initials = profile?.name?.slice(0, 2).toUpperCase() || "U"
 
   return (
     <header className="flex h-14 items-center gap-4 border-b border-border bg-card/50 px-4">
@@ -98,8 +98,8 @@ export function Topbar({ onMobileMenuToggle }: TopbarProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
-              <p className="text-sm font-medium">{user?.name}</p>
-              <p className="text-xs text-muted-foreground">{user?.email}</p>
+              <p className="text-sm font-medium">{profile?.name}</p>
+              <p className="text-xs text-muted-foreground">{profile?.email}</p>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>

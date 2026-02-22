@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 import {createServerClient} from "@supabase/ssr";
 import {createSupabaseServerClient} from "@/lib/supabase/server";
 
+import {Profile} from "./types/handled"
+
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next();
 
@@ -23,16 +25,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  if (user && isAppPage && !isOnboarding) {
+  if (user && (isAppPage || isOnboarding)) {
     const { data: profile } = await supabase
-      .from('profiles')
-      .select('organization_id')
-      .eq('id', user.id)
-      .maybeSingle();
+        .from('profiles')
+        .select('org_id')
+        .eq('id', user.id)
+        .maybeSingle()  ;
 
-    if (!profile?.organization_id) {
+
+    if (isAppPage && !profile?.org_id){
       return NextResponse.redirect(new URL('/onboarding', request.url))
     }
+
   }
 
   return response

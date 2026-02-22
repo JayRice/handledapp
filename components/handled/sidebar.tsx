@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { useAuth } from "@/lib/auth-context"
+import { useAuth } from "@/components/providers/AuthProvider"
 import { useAppStore } from "@/lib/store/app-store"
 import { appNavItems, isActiveRoute } from "@/lib/routes"
 import { Badge } from "@/components/ui/badge"
@@ -18,10 +18,10 @@ interface AppSidebarProps {
 
 export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const pathname = usePathname()
-  const { user } = useAuth()
+  const { user, profile, organization } = useAuth()
   const usage = useAppStore((s) => s.usage)
   const billing = useAppStore((s) => s.billing)
-  const smsPercent = usage.smsLimit > 0 ? Math.round((usage.smsUsed / usage.smsLimit) * 100) : 0
+  const smsPercent = Math.round((usage?.sms_used || 0 / 300) * 100)
 
   return (
     <aside
@@ -61,12 +61,12 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       {/* Org badge */}
       {!collapsed && (
         <div className="mx-3 mb-3 rounded-lg border border-border bg-muted/30 px-3 py-2">
-          <p className="truncate text-sm font-medium text-foreground">{user?.orgName || "My Business"}</p>
+          <p className="truncate text-sm font-medium text-foreground">{organization?.name || "My Business"}</p>
           <div className="mt-1 flex items-center gap-2">
             <Badge variant="outline" className="border-primary/30 text-primary bg-primary/10 text-[10px] px-1.5 py-0">
-              {billing.plan === "pro" ? "Pro" : billing.plan === "enterprise" ? "Enterprise" : "Trial"}
+              {billing?.plan === "pro" ? "Pro" : billing?.plan === "enterprise" ? "Enterprise" : "Trial"}
             </Badge>
-            {billing.plan === "trial" && (
+            {billing?.plan === "trial" && (
               <span className="text-[10px] text-muted-foreground">14 days left</span>
             )}
           </div>
@@ -110,7 +110,7 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         <div className="mx-3 mb-4 rounded-lg border border-border bg-muted/30 px-3 py-3">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>SMS used</span>
-            <span>{usage.smsUsed} / {usage.smsLimit}</span>
+            <span>{usage?.sms_used} / 300</span>
           </div>
           <Progress
             value={smsPercent}

@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/lib/auth-context"
-import { DevModeProvider } from "@/components/handled/providers/dev-mode-provider"
+import { useAuth } from "@/components/providers/AuthProvider"
+import { DevModeProvider } from "@/components/providers/dev-mode-provider"
 import { AppSidebar } from "@/components/handled/sidebar"
 import { Topbar } from "@/components/handled/topbar"
 import { BannerStack } from "@/components/handled/common/banner"
@@ -12,7 +12,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { Loader2 } from "lucide-react"
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
+  const { user, profile, userLoading } = useAuth()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -20,15 +20,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const dismissBanner = useAppStore((s) => s.dismissBanner)
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!userLoading && !user) {
       router.push("/sign-in")
     }
-    if (!loading && user && !user.onboardingComplete) {
+    if (!userLoading && user && !profile?.org_id) {
       router.push("/onboarding")
     }
-  }, [loading, user, router])
+  }, [userLoading, user, router])
 
-  if (loading || !user || !user.onboardingComplete) {
+  if (userLoading || !user || !profile?.org_id) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />

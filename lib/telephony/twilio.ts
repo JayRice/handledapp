@@ -1,7 +1,7 @@
 import twilio from 'twilio'
 import { logger } from '@/lib/utils/logger'
 
-function getTwilioClient() {
+export function getTwilioClient() {
   const accountSid = process.env.TWILIO_ACCOUNT_SID
   const authToken = process.env.TWILIO_AUTH_TOKEN
 
@@ -13,8 +13,8 @@ function getTwilioClient() {
 }
 
 export interface ProvisionNumberResult {
-  phoneNumber: string
-  providerNumberId: string
+  phoneNumber: string;
+  providerNumberId: string;
 }
 
 export async function provisionNumber(areaCode: string): Promise<ProvisionNumberResult> {

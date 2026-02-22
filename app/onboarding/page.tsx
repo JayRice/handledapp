@@ -28,19 +28,30 @@ const tonePresets = [
   { value: "friendly", label: "Friendly", desc: "Warm and approachable" },
 ]
 
+export type OnboardingData = {
+  businessName: string,
+  trade: string,
+  timezone: string,
+  areaCode: string,
+  forwardTo: string,
+  ackForwarding: boolean,
+  missedCallTextBack: boolean,
+  followUps: boolean,
+  tonePreset: string,
+}
 export default function OnboardingPage() {
-  const [step, setStep] = useState(1)
+  const [step, setStep] = useState(4)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const { user, userLoading, profile } = useAuth()
+  const { user, userLoading, profile, completeOnboarding } = useAuth()
   const router = useRouter()
 
-  const [data, setData] = useState({
-    businessName: "",
-    trade: "",
-    timezone: "",
-    areaCode: "",
-    forwardTo: "",
-    ackForwarding: false,
+  const [data, setData] = useState<OnboardingData>({
+    businessName: "Rice HVAC Services",
+    trade: "HVAC",
+    timezone: timezones[0],
+    areaCode: "901",
+    forwardTo: "9012369897",
+    ackForwarding: true,
     missedCallTextBack: true,
     followUps: true,
     tonePreset: "friendly",
@@ -50,7 +61,7 @@ export default function OnboardingPage() {
     if (!userLoading && !user) {
       router.push("/sign-in")
     }
-    if (!userLoading && profile?.orgId) {
+    if (!userLoading && profile?.org_id) {
       router.push("/app")
     }
   }, [userLoading, user, router])
@@ -66,12 +77,13 @@ export default function OnboardingPage() {
   const handleFinish = async () => {
     setIsSubmitting(true)
     await new Promise((r) => setTimeout(r, 1200))
-    completeOnboarding({
-      orgName: data.businessName,
-      trade: data.trade,
-      timezone: data.timezone,
-    })
+    const res = await completeOnboarding(data);
+    if (res.error){
+      toast.error(res.error.message)
+      setIsSubmitting(false);
+    }
     toast.success("Setup complete! Welcome to Handled.")
+    setIsSubmitting(false)
     router.push("/app")
   }
 

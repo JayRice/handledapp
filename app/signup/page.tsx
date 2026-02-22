@@ -40,7 +40,7 @@ export default function SignUpPage() {
     }
     setIsLoading(true)
     try {
-      await signUp(email, password)
+      await signUp(email, password, name)
       // Put rate limits right here
 
       router.push("/onboarding")

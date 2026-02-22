@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useDevMode } from "@/components/handled/providers/dev-mode-provider"
+import { useDevMode } from "@/components/providers/dev-mode-provider"
 import { useAppStore } from "@/lib/store/app-store"
 import { SectionHeader } from "@/components/handled/common/section-header"
 import { Card, CardContent } from "@/components/ui/card"
@@ -45,7 +45,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-import type { AutomationConfig } from "@/types/handled"
+import type { Automation } from "@/types/handled"
 
 function getTriggerLabel(trigger: string) {
   switch (trigger) {
@@ -101,13 +101,13 @@ export default function AutomationsPage() {
   const [editMessage, setEditMessage] = useState("")
   const [editDelay, setEditDelay] = useState("")
 
-  function openEdit(auto: AutomationConfig) {
+  function openEdit(auto: Automation) {
     if (!devMode) {
       toast.info("Not connected yet. Enable Dev Mode to edit.")
       return
     }
     setEditingAuto(auto)
-    setEditName(auto.name)
+    setEditName(auto.)
     setEditTrigger(auto.trigger)
     setEditMessage(auto.message)
     setEditDelay(auto.delay)

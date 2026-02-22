@@ -1,184 +1,31 @@
-// ── Organization ─────────────────────────────────────
-export interface Organization {
-  id: string
-  name: string
-  trade: "hvac" | "plumbing" | "electrical" | "general"
-  address?: string
-  timezone: string
-  businessHours: { open: string; close: string; days: string[] }
-  phoneNumbers: PhoneNumber[]
-  createdAt: string
-}
+// src/types/handled.ts (simple mode)
+import type { Database } from "@/types/supabase"
 
-// ── Profile ──────────────────────────────────────────
-export interface Profile {
-  id: string
-  email: string
-  name: string
-  avatarUrl?: string
-  phone?: string
-  role: "owner" | "admin" | "member"
-  onboardingComplete: boolean
-  orgId: string
-  plan: "trial" | "pro" | "enterprise"
-  timezone?: string
-  createdAt: string
-}
+type Tables = Database["public"]["Tables"]
 
-// ── Phone Number ─────────────────────────────────────
-export interface PhoneNumber {
-  id: string
-  number: string
-  label: string
-  status: "active" | "provisioning" | "inactive"
-  provider: "twilio" | "other"
-}
+export type Organization = Tables["organizations"]["Row"]
+export type Profile = Tables["profiles"]["Row"]
+export type PhoneNumber = Tables["phone_numbers"]["Row"]
+export type Call = Tables["calls"]["Row"]
+export type Conversation = Tables["conversations"]["Row"]
+export type Message = Tables["messages"]["Row"]
+export type Automation = Tables["automations"]["Row"]
+export type Billing = Tables["billing"]["Row"]
+export type UsageTracking = Tables["usage_tracking"]["Row"]
+export type SupportTicket = Tables["support_tickets"]["Row"]
+export type OptOut = Tables["opt_outs"]["Row"]
+export type OutboxJob = Tables["outbox_jobs"]["Row"]
+export type OrgInvite = Tables["org_invites"]["Row"]
+export type ConversationRead = Tables["conversation_reads"]["Row"]
+export type Event = Tables["events"]["Row"]
 
-// ── Call ──────────────────────────────────────────────
-export type CallType = "missed" | "answered" | "voicemail"
-export type FollowUpStatus = "auto-sms" | "pending" | "replied" | "none"
+// Optional convenience types
+export type ConversationStatus = Database["public"]["Enums"]["conversation_status"]
+export type CallStatus = Database["public"]["Enums"]["call_status"]
+export type TicketStatus = Database["public"]["Enums"]["ticket_status"]
+export type TicketPriority = Database["public"]["Enums"]["ticket_priority"]
+export type MemberRole = Database["public"]["Enums"]["member_role"]
+export type TradeType = Database["public"]["Enums"]["trade_type"]
 
-export interface Call {
-  id: string
-  caller: string
-  phone: string
-  date: string
-  duration: string
-  type: CallType
-  followUp: FollowUpStatus
-  industry: string
-}
-
-// ── Conversation ─────────────────────────────────────
-export type ConversationStatus = "new" | "in_progress" | "booked" | "lost" | "spam" | "opted_out"
-
-export interface Conversation {
-  id: string
-  name: string
-  phone: string
-  lastMessage: string
-  time: string
-  status: ConversationStatus
-  unread: boolean
-  trade: string
-}
-
-// ── Message ──────────────────────────────────────────
-export interface Message {
-  id: string
-  conversationId: string
-  sender: "them" | "us" | "system"
-  text: string
-  time: string
-  auto?: boolean
-}
-
-// ── Automation ───────────────────────────────────────
-export type AutomationTrigger = "missed_call" | "after_hours" | "no_reply" | "job_complete"
-export type AutomationDelay = "instant" | "30_seconds" | "2_minutes" | "5_minutes" | "2_hours" | "24_hours"
-
-export interface AutomationStep {
-  id: string
-  type: "sms" | "wait" | "condition"
-  message?: string
-  delay?: AutomationDelay
-}
-
-export interface AutomationConfig {
-  id: string
-  name: string
-  trigger: AutomationTrigger
-  message: string
-  delay: AutomationDelay
-  enabled: boolean
-  sends: number
-  replies: number
-  bookings: number
-  steps?: AutomationStep[]
-}
-
-// ── Billing ──────────────────────────────────────────
-export type BillingStatus = "active" | "paused" | "canceled" | "past_due"
-export type PlanTier = "trial" | "pro" | "enterprise"
-
-export interface PaymentMethod {
-  id: string
-  type: string
-  last4: string
-  expiry: string
-  isDefault: boolean
-  name: string
-}
-
-export interface BillingState {
-  status: BillingStatus
-  plan: PlanTier
-  trialEndsAt?: string
-  currentPeriodEnd?: string
-  paymentMethods: PaymentMethod[]
-  invoices: Invoice[]
-}
-
-export interface Invoice {
-  id: string
-  date: string
-  amount: number
-  status: "paid" | "pending" | "failed"
-  pdfUrl?: string
-}
-
-// ── Usage ────────────────────────────────────────────
-export interface UsageState {
-  smsUsed: number
-  smsLimit: number
-  callsThisPeriod: number
-  conversationsThisPeriod: number
-  period: string
-}
-
-// ── Support ──────────────────────────────────────────
-export type TicketPriority = "low" | "medium" | "high" | "urgent"
-export type TicketStatus = "open" | "in_progress" | "resolved" | "closed"
-
-export interface SupportTicket {
-  id: string
-  subject: string
-  description: string
-  priority: TicketPriority
-  status: TicketStatus
-  createdAt: string
-  updatedAt: string
-}
-
-// ── Opt-Out ──────────────────────────────────────────
-export interface OptOut {
-  id: string
-  phone: string
-  name: string
-  reason: string
-  optedOutAt: string
-  canResubscribe: boolean
-}
-
-// ── System Status ────────────────────────────────────
-export type ServiceHealth = "operational" | "degraded" | "outage" | "maintenance"
-
-export interface SystemStatus {
-  smsDelivery: ServiceHealth
-  phoneProvisioning: ServiceHealth
-  webhooks: ServiceHealth
-  complianceStatus: "approved" | "pending" | "rejected"
-  lastChecked: string
-  uptime: number
-}
-
-// ── Banner ───────────────────────────────────────────
-export type BannerVariant = "info" | "warn" | "error" | "success"
-
-export interface AppBanner {
-  id: string
-  variant: BannerVariant
-  message: string
-  dismissible: boolean
-  action?: { label: string; href: string }
-}
+export type AppBanner = Tables["app_banners"]["Row"]
+export type SystemStatus = Tables["system_status"]["Row"]
