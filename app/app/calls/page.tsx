@@ -32,6 +32,8 @@ import {
   MessageSquare,
 } from "lucide-react"
 import { toast } from "sonner"
+import {useConversations} from "@/hooks/useConversations";
+import {useCalls} from "@/hooks/useCalls";
 
 
 
@@ -64,31 +66,32 @@ function formatDate(dateStr: string) {
 }
 
 export default function CallsPage() {
-  const MOCK_CALLS = useAppStore((s) => s.calls)
+  const { data: calls = [], error, isLoading } = useCalls()
+
   const [search, setSearch] = useState("")
   const [typeFilter, setTypeFilter] = useState("all")
   const [followUpFilter, setFollowUpFilter] = useState("all")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
 
   const filtered = useMemo(() => {
-    let out = [...MOCK_CALLS]
+    let out = [...calls]
     if (search) {
       const q = search.toLowerCase()
-      out = out.filter(c => c.caller.toLowerCase().includes(q) || c.phone.includes(q))
+      out = out.filter(c =>  c?.caller_number?.includes(q))
     }
-    if (typeFilter !== "all") out = out.filter(c => c.type === typeFilter)
-    if (followUpFilter !== "all") out = out.filter(c => c.followUp === followUpFilter)
-    out.sort((a, b) => sortDir === "desc"
-      ? new Date(b.date).getTime() - new Date(a.date).getTime()
-      : new Date(a.date).getTime() - new Date(b.date).getTime()
-    )
+    if (typeFilter !== "all") out = out.filter(c => c.status === typeFilter)
+    // if (followUpFilter !== "all") out = out.filter(c => c.followUp === followUpFilter)
+    // out.sort((a, b) => sortDir === "desc"
+    //   ? new Date(b.cre).getTime() - new Date(a.date).getTime()
+    //   : new Date(a.date).getTime() - new Date(b.date).getTime()
+    // )
     return out
   }, [search, typeFilter, followUpFilter, sortDir])
 
   const stats = {
-    total: MOCK_CALLS.length,
-    missed: MOCK_CALLS.filter(c => c.type === "missed").length,
-    recovered: MOCK_CALLS.filter(c => c.followUp === "auto-sms" || c.followUp === "replied").length,
+    total: calls.length,
+    missed: calls.filter(c => c.status === "missed").length,
+    recovered: 0//calls.filter(c => c.followUp === "auto-sms" || c.followUp === "replied").length,
   }
 
   return (
@@ -205,12 +208,12 @@ export default function CallsPage() {
               <TableBody>
                 {filtered.map((call) => (
                   <TableRow key={call.id} className="border-border hover:bg-muted/30">
-                    <TableCell>{getTypeIcon(call.type)}</TableCell>
-                    <TableCell className="font-medium text-foreground">{call.caller}</TableCell>
-                    <TableCell className="text-muted-foreground hidden md:table-cell">{call.phone}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{formatDate(call.date)}</TableCell>
-                    <TableCell className="text-muted-foreground hidden sm:table-cell">{call.duration}</TableCell>
-                    <TableCell>{getFollowUpBadge(call.followUp)}</TableCell>
+                    <TableCell>{getTypeIcon(call.status)}</TableCell>
+                    <TableCell className="font-medium text-foreground">NAME</TableCell>
+                    <TableCell className="text-muted-foreground hidden md:table-cell">{call.caller_number}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{formatDate(call.created_at)}</TableCell>
+                    <TableCell className="text-muted-foreground hidden sm:table-cell">{call.duration_seconds}s</TableCell>
+                    {/*<TableCell>{getFollowUpBadge(call.followUp)}</TableCell>*/}
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
@@ -224,7 +227,7 @@ export default function CallsPage() {
             </Table>
           </div>
           <div className="mt-3 text-xs text-muted-foreground">
-            Showing {filtered.length} of {MOCK_CALLS.length} calls
+            Showing {filtered.length} of {calls.length} calls
           </div>
         </CardContent>
       </Card>

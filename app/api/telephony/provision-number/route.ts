@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     //   )
     // }
 
-    const {areaCode, forwardTo} = body.onboardingData;
+    const {areaCode, forwardTo, countryCode} = body.onboardingData;
 
     const supabase = supabaseAdmin
 
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         provider: 'twilio',
         provider_number_id: providerNumberId,
         number: phoneNumber,
-        forward_to_number: forwardTo,
+        forward_to_number: countryCode.trim() + forwardTo.trim(),
         is_active: true,
         created_at: new Date().toISOString(),
         status: "active"

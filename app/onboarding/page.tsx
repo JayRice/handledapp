@@ -30,6 +30,7 @@ const tonePresets = [
 
 export type OnboardingData = {
   businessName: string,
+  countryCode: string,
   trade: string,
   timezone: string,
   areaCode: string,
@@ -47,6 +48,7 @@ export default function OnboardingPage() {
 
   const [data, setData] = useState<OnboardingData>({
     businessName: "Rice HVAC Services",
+    countryCode: "+1",
     trade: "HVAC",
     timezone: timezones[0],
     areaCode: "901",
@@ -194,7 +196,41 @@ export default function OnboardingPage() {
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="forwardTo">Forward calls to (your cell / office)</Label>
-                <Input id="forwardTo" type="tel" placeholder="(555) 123-4567" value={data.forwardTo} onChange={(e) => setData({ ...data, forwardTo: e.target.value })} />
+                <div className="flex flex-row gap-2">
+                  {/* Country Code Dropdown */}
+                  <Select
+                      value={data.countryCode}
+                      onValueChange={(value) =>
+                          setData({ ...data, countryCode: value })
+                      }
+                  >
+                    <SelectTrigger className="w-28">
+                      <SelectValue placeholder="+1" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="+1">🇺🇸 +1</SelectItem>
+                      <SelectItem value="+44">🇬🇧 +44</SelectItem>
+                      <SelectItem value="+61">🇦🇺 +61</SelectItem>
+                      <SelectItem value="+91">🇮🇳 +91</SelectItem>
+                      <SelectItem value="+81">🇯🇵 +81</SelectItem>
+                      <SelectItem value="+49">🇩🇪 +49</SelectItem>
+                      <SelectItem value="+33">🇫🇷 +33</SelectItem>
+                      <SelectItem value="+34">🇪🇸 +34</SelectItem>
+                      <SelectItem value="+55">🇧🇷 +55</SelectItem>
+                      <SelectItem value="+52">🇲🇽 +52</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {/* Phone Number Input */}
+                  <Input
+                      type="tel"
+                      placeholder="(555) 123-4567"
+                      value={data.forwardTo}
+                      onChange={(e) =>
+                          setData({ ...data, forwardTo: e.target.value })
+                      }
+                  />
+                </div>
               </div>
               <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/50 p-4">
                 <Checkbox id="ackForwarding" checked={data.ackForwarding} onCheckedChange={(c) => setData({ ...data, ackForwarding: !!c })} className="mt-0.5" />

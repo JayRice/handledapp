@@ -45,7 +45,8 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-import type { Automation } from "@/types/handled"
+import {Automation, Trigger} from "@/types/handled"
+import {DELAY_OPTIONS, DelayKey, secondsToDelayKey, delayKeyToSeconds} from "@/lib/automations/delays";
 
 function getTriggerLabel(trigger: string) {
   switch (trigger) {
@@ -67,17 +68,9 @@ function getTriggerIcon(trigger: string) {
   }
 }
 
-function getDelayLabel(delay: string) {
-  switch (delay) {
-    case "instant": return "Instant"
-    case "30_seconds": return "30 seconds"
-    case "2_minutes": return "2 minutes"
-    case "5_minutes": return "5 minutes"
-    case "2_hours": return "2 hours"
-    case "24_hours": return "24 hours"
-    default: return delay
-  }
-}
+
+
+
 
 export default function AutomationsPage() {
   const { devMode } = useDevMode()
@@ -91,15 +84,15 @@ export default function AutomationsPage() {
   const [editOpen, setEditOpen] = useState(false)
   const [editingAuto, setEditingAuto] = useState<Automation | null>(null)
   const [newName, setNewName] = useState("")
-  const [newTrigger, setNewTrigger] = useState("missed_call")
+  const [newTrigger, setNewTrigger] = useState<Trigger>("no_reply")
   const [newMessage, setNewMessage] = useState("")
-  const [newDelay, setNewDelay] = useState("instant")
+  const [newDelay, setNewDelay] = useState<DelayKey | string>("30_seconds")
 
   // Edit form state
   const [editName, setEditName] = useState("")
-  const [editTrigger, setEditTrigger] = useState("")
+  const [editTrigger, setEditTrigger] = useState<Trigger>("no_reply")
   const [editMessage, setEditMessage] = useState("")
-  const [editDelay, setEditDelay] = useState("")
+  const [editDelay, setEditDelay] = useState<DelayKey | string>("30_seconds")
 
   function openEdit(auto: Automation) {
     if (!devMode) {
@@ -107,16 +100,16 @@ export default function AutomationsPage() {
       return
     }
     setEditingAuto(auto)
-    setEditName(auto.)
+    setEditName(auto.name)
     setEditTrigger(auto.trigger)
     setEditMessage(auto.message)
-    setEditDelay(auto.delay)
+    setEditDelay(secondsToDelayKey(auto.delay_seconds))
     setEditOpen(true)
   }
 
   function saveEdit() {
     if (!editingAuto) return
-    storeUpdate(editingAuto.id, { name: editName, trigger: editTrigger, message: editMessage, delay: editDelay })
+    storeUpdate(editingAuto.id, { name: editName, trigger: editTrigger, message: editMessage, delay_seconds: delayKeyToSeconds(editDelay) })
     setEditOpen(false)
     toast.success("Automation updated (demo)")
   }
@@ -145,15 +138,12 @@ export default function AutomationsPage() {
   function createAutomation() {
     if (!newName || !newMessage) { toast.error("Please fill in all fields"); return }
     storeAdd({
-      id: Date.now().toString(),
       name: newName,
       trigger: newTrigger,
       message: newMessage,
-      delay: newDelay,
+      delay_seconds: delayKeyToSeconds(newDelay),
       enabled: true,
-      sends: 0,
-      replies: 0,
-      bookings: 0,
+
     })
     setNewName(""); setNewMessage(""); setNewTrigger("missed_call"); setNewDelay("instant")
     setCreateOpen(false)
@@ -220,16 +210,18 @@ export default function AutomationsPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-foreground">Delay</Label>
-                <Select value={newDelay} onValueChange={setNewDelay}>
-                  <SelectTrigger className="bg-background border-border text-foreground"><SelectValue /></SelectTrigger>
+                <Label className="text-foreground">Delay (Seconds)</Label>
+                <Select value={newDelay} onValueChange={(val) => setNewDelay(val as DelayKey)}>
+                  <SelectTrigger className="bg-background border-border text-foreground">
+                    <SelectValue />
+                  </SelectTrigger>
+
                   <SelectContent>
-                    <SelectItem value="instant">Instant</SelectItem>
-                    <SelectItem value="30_seconds">30 seconds</SelectItem>
-                    <SelectItem value="2_minutes">2 minutes</SelectItem>
-                    <SelectItem value="5_minutes">5 minutes</SelectItem>
-                    <SelectItem value="2_hours">2 hours</SelectItem>
-                    <SelectItem value="24_hours">24 hours</SelectItem>
+                    {DELAY_OPTIONS.map((option) => (
+                        <SelectItem key={option.key} value={option.key}>
+                          {option.label}
+                        </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -329,7 +321,7 @@ export default function AutomationsPage() {
                               </Badge>
                               <Badge variant="outline" className="gap-1 text-xs border-border text-muted-foreground">
                                 <Clock className="h-3 w-3" />
-                                {getDelayLabel(auto.delay)}
+                                {auto.delay_seconds} Second Delay
                               </Badge>
                             </div>
                           </div>
@@ -437,7 +429,7 @@ export default function AutomationsPage() {
                     {editMessage || "Your message preview will appear here..."}
                   </div>
                   <span className="text-[10px] text-muted-foreground">
-                    {getDelayLabel(editDelay)} after {getTriggerLabel(editTrigger).toLowerCase()}
+                    {editDelay} after {getTriggerLabel(editTrigger).toLowerCase()}
                   </span>
                 </div>
               </div>

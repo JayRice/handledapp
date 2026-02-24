@@ -1,6 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import type {
+import {
     Conversation,
     ConversationStatus,
     Message,
@@ -10,15 +10,10 @@ import type {
     UsageTracking,
     SupportTicket,
     OptOut,
-    AppBanner, SystemStatus,
+    AppBanner, SystemStatus, InsertAutomation,
 } from "@/types/handled"
-import {
-  MOCK_CONVERSATIONS,
-  MOCK_MESSAGES,
-  MOCK_CALLS,
-  MOCK_AUTOMATIONS,
-  MOCK_OPT_OUTS,
-} from "@/lib/mock/seed-data"
+import {toast} from "sonner";
+
 
 // ── Slice Interfaces ─────────────────────────────────
 
@@ -42,9 +37,10 @@ interface CallsSlice {
 
 interface AutomationsSlice {
   automations: Automation[]
+  setAutomations: Automation[]
   toggleAutomation: (id: string) => void
-  updateAutomation: (id: string, updates: Partial<Automation>) => void
-  addAutomation: (automation: Automation) => void
+  updateAutomation: (id: string, updates: Partial<Automation>) => Promise<void>
+  addAutomation: (automation: Omit<InsertAutomation, "org_id">) => Promise<void>
   deleteAutomation: (id: string) => void
 }
 
@@ -171,13 +167,27 @@ export const useAppStore = create<AppStore>()(
 
         })),
 
-      updateAutomation: (id, updates) =>
-        set((s) => ({
-          automations: [],
-        })),
+      updateAutomation: async (id, updates) =>
+      {
 
-      addAutomation: (automation) =>
-        set((s) => ({ automations: [...s.automations, automation] })),
+      },
+
+      addAutomation: async (automation) => {
+          const res = await fetch("/api/automations",
+              {
+                  method: "POST",
+                  body: JSON.stringify(automation)
+              });
+          const json = await res.json();
+          if (json.status !== 200) {
+               toast.error(json.error.message || "Something went wrong internally, try again later.")
+              return;
+          }
+
+          toast.success("Automation created successful")
+
+
+      },
 
       deleteAutomation: (id) =>
         set((s) => ({ automations: s.automations.filter((a) => a.id !== id) })),

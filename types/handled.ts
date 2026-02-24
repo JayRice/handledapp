@@ -8,8 +8,14 @@ export type Profile = Tables["profiles"]["Row"]
 export type PhoneNumber = Tables["phone_numbers"]["Row"]
 export type Call = Tables["calls"]["Row"]
 export type Conversation = Tables["conversations"]["Row"]
+export type ConversationInsert = Tables["conversations"]["Insert"]
+
 export type Message = Tables["messages"]["Row"]
+export type MessageInsert = Tables["messages"]["Insert"]
+
+
 export type Automation = Tables["automations"]["Row"]
+export type InsertAutomation = Database["public"]["Tables"]["automations"]["Insert"];
 export type Billing = Tables["billing"]["Row"]
 export type UsageTracking = Tables["usage_tracking"]["Row"]
 export type SupportTicket = Tables["support_tickets"]["Row"]
@@ -26,6 +32,7 @@ export type TicketStatus = Database["public"]["Enums"]["ticket_status"]
 export type TicketPriority = Database["public"]["Enums"]["ticket_priority"]
 export type MemberRole = Database["public"]["Enums"]["member_role"]
 export type TradeType = Database["public"]["Enums"]["trade_type"]
+export type Trigger = Database["public"]["Enums"]["automation_trigger"]
 
 export type AppBanner = Tables["app_banners"]["Row"]
 export type SystemStatus = Tables["system_status"]["Row"]

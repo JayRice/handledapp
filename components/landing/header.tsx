@@ -108,10 +108,10 @@ export function Header() {
               ))}
               <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4">
                 <Button variant="ghost" className="justify-start text-muted-foreground" asChild>
-                  <Link href="/sign-in">Sign in</Link>
+                  <Link href="/login">Sign in</Link>
                 </Button>
                 <Button className="bg-primary text-primary-foreground hover:bg-primary/90" asChild>
-                  <Link href="/sign-up">Start free trial</Link>
+                  <Link href="/signup">Start free trial</Link>
                 </Button>
               </div>
             </div>

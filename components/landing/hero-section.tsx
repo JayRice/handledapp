@@ -6,8 +6,10 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowRight, Wrench } from "lucide-react"
 import { HeroMock } from "./hero-mock"
 import { LiveTicker } from "./live-ticker"
+import {useRouter} from "next/navigation";
 
 export function HeroSection() {
+  const router = useRouter()
   return (
     <section className="relative overflow-hidden pt-24 pb-16 lg:pt-32 lg:pb-24">
       {/* Background elements */}
@@ -52,6 +54,9 @@ export function HeroSection() {
               <Button
                 size="lg"
                 className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 h-12 text-base"
+                onClick={() => {
+                  router.push("/signup")
+                }}
               >
                 Start free trial
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -60,6 +65,9 @@ export function HeroSection() {
                 variant="outline"
                 size="lg"
                 className="h-12 text-base"
+                onClick={() => {
+                  router.push("/signup")
+                }}
               >
                 See how it works
               </Button>

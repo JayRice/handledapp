@@ -56,6 +56,13 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import {useAuth} from "@/components/providers/AuthProvider";
+import {useConversations} from "@/hooks/useConversations";
+import { InboxSkeleton } from "@/components/handled/common/skeletons"
+import {useMessages} from "@/hooks/useMessages";
+
+type GhostMessageType =  Pick<Message, "text" | "delivery_status" | "id" | "source" | "created_at" | "sender" >
+import { createClient } from "@/lib/supabase/client"
+
 
 export default function InboxPage() {
   const { devMode } = useDevMode()
@@ -63,13 +70,10 @@ export default function InboxPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
 
-  const conversations = useAppStore((s) => s.conversations)
+
+  const { data: conversations, error, isLoading } = useConversations()
 
 
-  const messages = useAppStore((s) => s.messages)
-  const addMessage = useAppStore((s) => s.addMessage)
-
-  const setConversationStatus = useAppStore((s) => s.setConversationStatus)
 
   const paramId = searchParams.get("c")
   const [activeConvo, setActiveConvo] = useState<string | null>(null)
@@ -79,6 +83,14 @@ export default function InboxPage() {
   const [showOptOutDialog, setShowOptOutDialog] = useState(false)
   const [mobileShowThread, setMobileShowThread] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const [ghostMessages, setGhostMessages] = useState<Record<string, GhostMessageType >>({})
+
+  const [messageLoading, setMessageLoading] = useState(false)
+
+
+  const { data: messageData , isLoading: isMessagesLoading, mutate: mutateMessages } = useMessages(activeConvo)
+
 
 
   useEffect(() => {
@@ -91,7 +103,51 @@ export default function InboxPage() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages, activeConvo])
+
+    if (!messageData) return;
+
+    setGhostMessages(prev => {
+      const copy = { ...prev }
+
+      for (const id in copy){
+        const filter = messageData.messages.filter((messageData) => messageData.id == id);
+        if (filter.length >= 0){
+          console.log("removing")
+          delete copy[id];
+        }
+      }
+      return copy
+    })  }, [messageData, activeConvo])
+
+  useEffect(() => {
+    if (!activeConvo) return
+
+
+    const supabase = createClient()
+
+    console.log("created")
+    const channel = supabase
+        .channel(`messages:${activeConvo}`)
+        .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "messages",
+              filter: `conversation_id=eq.${activeConvo}`,
+            },
+            () => {
+              console.log("updating")
+              // simplest: refetch messages for that convo
+              mutateMessages()
+            }
+        )
+        .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [activeConvo, mutateMessages])
 
   function selectConversation(id: string) {
     setActiveConvo(id)
@@ -100,27 +156,57 @@ export default function InboxPage() {
   }
 
   function handleStatusChange(id: string, status: ConversationStatus) {
-    setConversationStatus(id, status)
+    // setConversationStatus(id, status)
     toast.success(`Status changed to ${STATUS_LABELS[status]} (demo)`)
   }
 
-  function handleSend() {
+  async function handleSend() {
     if (!composer.trim() || !activeConvo) return
-    addMessage(activeConvo, {
-      conversation_id: activeConvo,
-      text: composer.trim(),
-      created_at: (new Date()).toISOString(),
-    })
-    setComposer("")
-    toast.success("Message sent (demo)")
-  }
 
+    const reference_id = crypto.randomUUID()
+
+    const ghostMessage: GhostMessageType = {
+      text: composer.trim(),
+      delivery_status: "sending",
+      created_at: new Date().toISOString(),
+      id: reference_id,
+      source: "manual",
+      sender: "us",
+    }
+
+    // IMPORTANT: functional update (avoids stale ghostMessages)
+    setGhostMessages(prev => ({ ...prev, [reference_id]: ghostMessage }))
+
+    setComposer("")
+
+    const res = await fetch(`/api/conversations/${activeConvo}`, {
+      method: "POST",
+      body: JSON.stringify({ input_message: ghostMessage.text, reference_key: reference_id }),
+      headers: { "Content-Type": "application/json" },
+    })
+
+    const json = await res.json()
+    const referenceKey = json.reference_key as string
+    const message_id = json.message_id;
+
+    // Always attempt removal using functional update
+    setGhostMessages(prev => {
+      if (!(referenceKey in prev)) return prev
+      const copy = { ...prev }
+      copy[referenceKey] = {...copy[referenceKey], id: message_id, delivery_status: "sent"}
+      return copy
+    })
+  }
   function handleOptOut() {
     if (!activeConvo) return
-    setConversationStatus(activeConvo, "opted_out")
+    // setConversationStatus(activeConvo, "opted_out")
     setShowOptOutDialog(false)
     toast.success("Contact opted out (demo)")
   }
+
+  if (isLoading) return <InboxSkeleton/>
+  if (error) return <div>Failed to load conversations.</div>
+
 
   if (!devMode) {
     return (
@@ -134,7 +220,7 @@ export default function InboxPage() {
     )
   }
 
-  const filtered = conversations.filter((c) => {
+  const filtered = conversations?.filter((c) => {
     if (filter !== "All") {
       const filterKey = filter.toLowerCase().replace(" ", "_")
       if (c.status !== filterKey) return false
@@ -146,8 +232,13 @@ export default function InboxPage() {
     return true
   })
 
-  const active = conversations.find((c) => c.id === activeConvo)
-  const activeMessages = activeConvo ? messages[activeConvo] || [] : []
+  const active = conversations?.find((c) => c.id === activeConvo)
+
+
+
+
+  const messages = [...(messageData?.messages || []), ...Object.values(ghostMessages)]
+
 
   return (
     <div className="-mx-4 -my-4 lg:-mx-6 lg:-my-6 flex h-[calc(100vh-3.5rem)] overflow-hidden">
@@ -174,7 +265,7 @@ export default function InboxPage() {
                 {f}
                 {f !== "All" && (
                   <span className="ml-1 opacity-60">
-                    {conversations.filter((c) => c.status === f.toLowerCase().replace(" ", "_")).length}
+                    {conversations?.filter((c) => c.status === f.toLowerCase().replace(" ", "_")).length}
                   </span>
                 )}
               </button>
@@ -183,14 +274,14 @@ export default function InboxPage() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {filtered.length === 0 ? (
+          {filtered?.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-8 text-center">
               <MessageSquare className="h-10 w-10 text-muted-foreground mb-2" />
               <p className="text-sm font-medium text-foreground">No conversations</p>
               <p className="text-xs text-muted-foreground">No conversations match your filter.</p>
             </div>
           ) : (
-            filtered.map((convo) => (
+            filtered?.map((convo) => (
               <button
                 key={convo.id}
                 onClick={() => selectConversation(convo.id)}
@@ -295,14 +386,20 @@ export default function InboxPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
-              {activeMessages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={cn(
-                    "flex flex-col max-w-[75%]",
-                    msg.sender === "us" ? "items-end self-end" : msg.sender === "system" ? "items-center self-center max-w-full" : "items-start self-start"
-                  )}
-                >
+              {messages.map((msg) => (
+                  <div
+                      key={msg.id}
+                      className={cn(
+                          "flex flex-col max-w-[75%]",
+                          msg.sender === "us"
+                              ? "items-end self-end"
+                              : msg.sender === "system"
+                                  ? "items-center self-center max-w-full"
+                                  : "items-start self-start",
+
+                          msg.delivery_status === "sending" && "opacity-60"
+                      )}
+                  >
                   {msg.sender === "system" ? (
                     <div className="rounded-md bg-muted px-3 py-1.5 text-xs text-muted-foreground">{msg.text}</div>
                   ) : (
@@ -329,6 +426,7 @@ export default function InboxPage() {
                 <div className="flex-1">
                   <Textarea
                     placeholder="Type a message..."
+                    disabled={messageLoading}
                     className="min-h-[60px] resize-none text-sm bg-muted/30"
                     value={composer}
                     onChange={(e) => setComposer(e.target.value)}
@@ -342,7 +440,7 @@ export default function InboxPage() {
                   <div className="mt-2 flex items-center gap-2">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-7 text-xs">Quick replies <ChevronDown className="ml-1 h-3 w-3" /></Button>
+                        <Button variant="outline" size="sm" className="h-7 text-xs" disabled={messageLoading}>Quick replies <ChevronDown className="ml-1 h-3 w-3" /></Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
                         {QUICK_REPLIES.map((r) => (
@@ -361,7 +459,7 @@ export default function InboxPage() {
                         <div className="flex flex-col gap-2">
                           <p className="text-sm font-medium text-foreground">AI suggestions</p>
                           {AI_SUGGESTIONS.map((s) => (
-                            <Button key={s.label} variant="outline" size="sm" className="justify-start text-xs" onClick={() => { setComposer(s.text); toast.info("AI suggestion applied") }}>
+                            <Button key={s.label} variant="outline" size="sm" className="justify-start text-xs" disabled={messageLoading} onClick={() => { setComposer(s.text); toast.info("AI suggestion applied") }}>
                               {s.label}
                             </Button>
                           ))}
@@ -370,7 +468,7 @@ export default function InboxPage() {
                     </Popover>
                   </div>
                 </div>
-                <Button size="icon" className="shrink-0 bg-primary text-primary-foreground hover:bg-primary/90" onClick={handleSend} disabled={!composer.trim()} aria-label="Send message">
+                <Button  size="icon" className="shrink-0 bg-primary text-primary-foreground hover:bg-primary/90" onClick={handleSend} disabled={!composer.trim() || messageLoading} aria-label="Send message">
                   <Send className="h-4 w-4" />
                 </Button>
               </div>

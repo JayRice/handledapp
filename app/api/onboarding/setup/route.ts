@@ -5,7 +5,7 @@ import { supabaseAdmin} from '@/lib/supabase/supabaseAdmin'
 import { logger } from '@/lib/utils/logger'
 import { formatE164 } from '@/lib/utils/phone'
 import {Organization, Profile} from "@/types/handled";
-import {ProfileInsert} from "@/types/db";
+import {ProfileInsert} from "@/types/supabase";
 
 export async function POST(request: NextRequest) {
   try {
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
         trade: trade.toLowerCase() || null,
         timezone: timezone || 'America/New_York',
       } as Organization)
-      .select()
+      .select("*")
       .single()
 
     if (orgError || !org) {
