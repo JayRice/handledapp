@@ -32,6 +32,14 @@ export async function POST(req: NextRequest) {
 
     try{
         const form = await req.formData();
+        const rawDuration = form.get("DialCallDuration")
+        const parsedDuration = Number(rawDuration)
+
+        console.log(form)
+        const callDuration = Number.isFinite(parsedDuration)
+            ? parsedDuration
+            : 0
+
         const callStatus = {
             dialCallStatus: String(form.get("DialCallStatus") ?? ""),
             dialSipResponseCode: String(form.get("DialSipResponseCode") ?? ""),
@@ -39,6 +47,7 @@ export async function POST(req: NextRequest) {
             callSid: String(form.get("CallSid") ?? ""),
             from: String(form.get("From") ?? ""),
             to: String(form.get("To") ?? ""),
+            callDuration: callDuration
         };
 
 
@@ -54,32 +63,31 @@ export async function POST(req: NextRequest) {
 
         const phone = phoneData as PhoneNumber;
 
+        if (phoneError) {throw phoneError}
+
+
+
         const createdAt = new Date().toISOString();
         const {data: callData, error: callError } = await supabaseAdmin.from("calls").insert({
             phone_number_id: phone.id,
             caller_number: callStatus.from,
+            caller_name: phone.label,
             created_at: createdAt,
-            duration_seconds: 0,
+            duration_seconds: callStatus.callDuration,
             org_id: phone.org_id,
             status: convert_to_status(callStatus.dialCallStatus),
             started_at: createdAt
         } as Call)
 
+        // Dont stop flow but log the error
+        if(callError){
+            console.error(callError.message)
+        }
+
 
         // Missed call detection
-        if (
-            missed_call
-        ) {
+        if (missed_call) {
 
-
-
-            if (phoneError) {throw phoneError}
-
-            // Create call
-
-
-
-            if (callError) {throw callError}
 
 
             const {data: org, error: orgErr} = await supabaseAdmin.from("organizations").select("*").eq("id", phone.org_id).single();

@@ -19,14 +19,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const banners = useAppStore((s) => s.banners)
   const dismissBanner = useAppStore((s) => s.dismissBanner)
 
-  useEffect(() => {
-    if (!userLoading && !user) {
-      router.push("/sign-in")
-    }
-    if (!userLoading && user && !profile?.org_id) {
-      router.push("/onboarding")
-    }
-  }, [userLoading, user, router])
 
   if (userLoading || !user || !profile?.org_id) {
     return (

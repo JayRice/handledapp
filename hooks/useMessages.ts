@@ -1,21 +1,28 @@
 // hooks/useMessages.ts
-"use client"
+import useSWRInfinite from "swr/infinite"
+import { Message } from "@/types/handled"
 
-import useSWR from "swr"
-import {Message} from "@/types/handled";
+import {fetcher} from "@/lib/utils/common-utilities";
 
-const fetcher = async <T>(url: string): Promise<T> => {
-    const res = await fetch(url)
-    if (!res.ok) throw new Error(await res.text())
-    return res.json()
+export type MessagesPage = {
+    conversationId: string
+    messages: Message[]
+    nextCursor: string | null
 }
 
+export function useMessages(conversationId: string | null, limit = 50) {
+    return useSWRInfinite<MessagesPage>(
+        (pageIndex, prev) => {
+            if (!conversationId) return null
+            if (prev && !prev.nextCursor) return null
 
-
-export function useMessages(conversationId: string | null) {
-    return useSWR<{messages: Message[], nextCursor: string, conversationId: string}>(
-        conversationId ? `/api/conversations/${conversationId}/messages?limit=50` : null,
+            const base = `/api/conversations/${conversationId}/messages?limit=${limit}`
+            if (pageIndex === 0) return base
+            return `${base}&cursor=${encodeURIComponent(prev?.nextCursor)}`
+        },
         fetcher,
-        { keepPreviousData: true }
+        {
+            revalidateFirstPage: false,
+        }
     )
 }

@@ -74,6 +74,7 @@ export default function CallsPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
 
   const filtered = useMemo(() => {
+
     let out = [...calls]
     if (search) {
       const q = search.toLowerCase()
@@ -86,7 +87,7 @@ export default function CallsPage() {
     //   : new Date(a.date).getTime() - new Date(b.date).getTime()
     // )
     return out
-  }, [search, typeFilter, followUpFilter, sortDir])
+  }, [calls, search, typeFilter, followUpFilter, sortDir])
 
   const stats = {
     total: calls.length,
@@ -209,7 +210,7 @@ export default function CallsPage() {
                 {filtered.map((call) => (
                   <TableRow key={call.id} className="border-border hover:bg-muted/30">
                     <TableCell>{getTypeIcon(call.status)}</TableCell>
-                    <TableCell className="font-medium text-foreground">NAME</TableCell>
+                    <TableCell className="font-medium text-foreground">{call.caller_name || "UNNAMED_CALLER"}</TableCell>
                     <TableCell className="text-muted-foreground hidden md:table-cell">{call.caller_number}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{formatDate(call.created_at)}</TableCell>
                     <TableCell className="text-muted-foreground hidden sm:table-cell">{call.duration_seconds}s</TableCell>

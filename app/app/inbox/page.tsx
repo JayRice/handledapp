@@ -11,7 +11,7 @@ import {
   STATUS_LABELS,
   FILTERS,
 } from "@/lib/mock/seed-data"
-import type { ConversationStatus, Message } from "@/types/handled"
+import type {Conversation, ConversationStatus, ConversationUpdate, Message} from "@/types/handled"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -58,11 +58,16 @@ import { toast } from "sonner"
 import {useAuth} from "@/components/providers/AuthProvider";
 import {useConversations} from "@/hooks/useConversations";
 import { InboxSkeleton } from "@/components/handled/common/skeletons"
-import {useMessages} from "@/hooks/useMessages";
+import {MessagesPage, useMessages} from "@/hooks/useMessages";
 
-type GhostMessageType =  Pick<Message, "text" | "delivery_status" | "id" | "source" | "created_at" | "sender" >
+
 import { createClient } from "@/lib/supabase/client"
+import {formatChattyTime} from "@/lib/utils/formatChattyTime";
+import {EditText} from "@/components/handled/EditText";
 
+
+import {GhostConversationType, GhostMessageType} from "@/lib/types/ghost";
+import {useConversationsRealtime} from "@/hooks/useConversationsRealtime";
 
 export default function InboxPage() {
   const { devMode } = useDevMode()
@@ -71,7 +76,16 @@ export default function InboxPage() {
   const router = useRouter()
 
 
-  const { data: conversations, error, isLoading } = useConversations()
+  const { data: conversationPages,
+    error,
+    isLoading: isConversationsLoading,
+    size: convoPgSize,
+    setSize: setConvoPgSize,
+    mutate: mutateConversations } = useConversations();
+
+  const conversations = conversationPages?.flatMap(page => page.items) ?? []
+
+  useConversationsRealtime(conversations, mutateConversations)
 
 
 
@@ -84,13 +98,52 @@ export default function InboxPage() {
   const [mobileShowThread, setMobileShowThread] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+
+  const [ghostConversations, setGhostConversations] = useState<Record<string, GhostConversationType>>({})
   const [ghostMessages, setGhostMessages] = useState<Record<string, GhostMessageType >>({})
 
   const [messageLoading, setMessageLoading] = useState(false)
 
 
-  const { data: messageData , isLoading: isMessagesLoading, mutate: mutateMessages } = useMessages(activeConvo)
+  const {
+    data: msgPages,
+    size: msgSize,
+    setSize: setMsgSize,
+    mutate: mutateMessages,
+    isValidating: isMessagesValidating,
+  } = useMessages(activeConvo, 50)
 
+  // flatten pages into one list
+  const pages = msgPages?.flatMap(p => p.messages) ?? []
+
+  const all_messages = pages.sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  )
+
+  // whether more older messages exist
+  const hasMoreOlderMessages =
+      msgPages?.length ? Boolean(msgPages[msgPages.length - 1]?.nextCursor) : false
+
+  const [convoCursor, setConvoCursor] = useState<string | null>(null)
+  const [convoHasMore, setConvoHasMore] = useState(true)
+  const [convoLoading, setConvoLoading] = useState(false)
+  const convoListRef = useRef<HTMLDivElement | null>(null)
+
+
+  const [msgCursor, setMsgCursor] = useState<string | null>(null)
+  const [msgHasMore, setMsgHasMore] = useState(true)
+  const messagesListRef = useRef<HTMLDivElement | null>(null)
+
+
+  const canLoadRef = useRef(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      canLoadRef.current = true
+    }, 3000)
+
+    return () => clearTimeout(timer)
+  }, [])
 
 
   useEffect(() => {
@@ -102,22 +155,10 @@ export default function InboxPage() {
   }, [searchParams])
 
   useEffect(() => {
+    if(messageLoading) {return}
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
 
-    if (!messageData) return;
-
-    setGhostMessages(prev => {
-      const copy = { ...prev }
-
-      for (const id in copy){
-        const filter = messageData.messages.filter((messageData) => messageData.id == id);
-        if (filter.length >= 0){
-          console.log("removing")
-          delete copy[id];
-        }
-      }
-      return copy
-    })  }, [messageData, activeConvo])
+  }, [activeConvo, all_messages])
 
   useEffect(() => {
     if (!activeConvo) return
@@ -136,10 +177,11 @@ export default function InboxPage() {
               table: "messages",
               filter: `conversation_id=eq.${activeConvo}`,
             },
-            () => {
-              console.log("updating")
+             () => {
               // simplest: refetch messages for that convo
-              mutateMessages()
+               mutateMessages()
+
+
             }
         )
         .subscribe()
@@ -149,14 +191,114 @@ export default function InboxPage() {
     }
   }, [activeConvo, mutateMessages])
 
+  useEffect(() => {
+    if (!activeConvo) return
+    setMsgCursor(null)
+    setMsgHasMore(true)
+    // load initial page
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeConvo])
+
+
+  async function loadMoreConversations(limit: 10 | 50 = 10) {
+    if (!canLoadRef.current) {return}
+
+    console.log('loading more convos: ', convoHasMore)
+    if (convoLoading || !convoHasMore ) return
+    setConvoPgSize(convoPgSize + 1);
+  }
+
+  function onConvoScroll() {
+    const el = convoListRef.current
+    if (!el) return
+
+    const threshold = 160 // px from bottom
+    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - threshold
+
+    if (nearBottom) loadMoreConversations(10)
+  }
+
+
+
+  async function loadOlderMessages(limit: 10 | 50 = 50) {
+
+    if (!canLoadRef.current) {return}
+    console.log('loading more messages: ', hasMoreOlderMessages)
+
+    if (messageLoading || !hasMoreOlderMessages) return
+    setMsgSize(msgSize + 1)
+  }
+
+
+  function onMessagesScroll() {
+    const el = messagesListRef.current
+    if (!el) return
+
+    const threshold = 120 // px from top
+    const nearTop = el.scrollTop <= threshold
+
+    if (nearTop) loadOlderMessages(50)
+  }
+
+
   function selectConversation(id: string) {
     setActiveConvo(id)
     setMobileShowThread(true)
     router.replace(`/app/inbox?c=${id}`, { scroll: false })
   }
 
+  async function updateConversation(id: string, updates: ConversationUpdate) {
+    // optimistic overlay
+    setGhostConversations(prev => ({
+      ...prev,
+      [id]: { ...(prev[id] ?? {}), ...updates },
+    }))
+
+    const res = await fetch(`/api/conversations/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    })
+
+    if (!res.ok) {
+      // rollback optimistic overlay
+      setGhostConversations(prev => {
+        const copy = { ...prev }
+        delete copy[id]
+        return copy
+      })
+      return
+    }
+
+    const {data} = await res.json()
+
+    // write server truth into SWR cache (NO refetch)
+    await mutateConversations(
+        pages => {
+          if (!pages) return pages
+
+          return pages.map(page => ({
+            ...page,
+            items: page.items.map(c =>
+                c.id === id ? { ...c, ...data } : c
+            ),
+          }))
+        },
+        false
+    )
+
+    // clear ghost overlay
+    setGhostConversations(prev => {
+      const copy = { ...prev }
+      delete copy[id]
+      return copy
+    })
+
+    // DO NOT immediately mutateConversations() refetch here
+    // Let realtime / periodic revalidate handle it
+  }
   function handleStatusChange(id: string, status: ConversationStatus) {
-    // setConversationStatus(id, status)
+    updateConversation(id, {status: status})
     toast.success(`Status changed to ${STATUS_LABELS[status]} (demo)`)
   }
 
@@ -172,6 +314,7 @@ export default function InboxPage() {
       id: reference_id,
       source: "manual",
       sender: "us",
+      conversation_id: ""
     }
 
     // IMPORTANT: functional update (avoids stale ghostMessages)
@@ -187,13 +330,17 @@ export default function InboxPage() {
 
     const json = await res.json()
     const referenceKey = json.reference_key as string
-    const message_id = json.message_id;
+    const message = json.message;
 
+
+
+    if (!message) {return}
     // Always attempt removal using functional update
     setGhostMessages(prev => {
       if (!(referenceKey in prev)) return prev
       const copy = { ...prev }
-      copy[referenceKey] = {...copy[referenceKey], id: message_id, delivery_status: "sent"}
+
+      copy[referenceKey] = {...copy[referenceKey], id: message.id, conversation_id: message.conversation_id , delivery_status: "sent"}
       return copy
     })
   }
@@ -204,7 +351,10 @@ export default function InboxPage() {
     toast.success("Contact opted out (demo)")
   }
 
-  if (isLoading) return <InboxSkeleton/>
+
+  const currentGhostConversation = activeConvo ? (ghostConversations[activeConvo] as Conversation) : null;
+
+  if (isConversationsLoading && conversations?.length == 0) return <InboxSkeleton/>
   if (error) return <div>Failed to load conversations.</div>
 
 
@@ -223,11 +373,11 @@ export default function InboxPage() {
   const filtered = conversations?.filter((c) => {
     if (filter !== "All") {
       const filterKey = filter.toLowerCase().replace(" ", "_")
-      if (c.status !== filterKey) return false
+      if ((ghostConversations[c.id]?.status || c.status) !== filterKey) return false
     }
     if (search) {
       const q = search.toLowerCase()
-      return c.caller_name?.toLowerCase().includes(q) || c.caller_number?.includes(q)
+      return (ghostConversations[c.id].caller_name || c.caller_name)?.toLowerCase().includes(q) || c.caller_number?.includes(q)
     }
     return true
   })
@@ -235,9 +385,17 @@ export default function InboxPage() {
   const active = conversations?.find((c) => c.id === activeConvo)
 
 
-
-
-  const messages = [...(messageData?.messages || []), ...Object.values(ghostMessages)]
+  console.log("messages: ", all_messages)
+  const messages = [
+    ...(all_messages || []),
+    ...Object.values(ghostMessages).filter(
+        ghost => !(all_messages || []).some(m => (m.id === ghost.id) )
+    )
+  ]
+  const mergedConversations = (conversations ?? []).map(c => ({
+    ...c,
+    ...(ghostConversations[c.id] ?? {}),
+  }))
 
 
   return (
@@ -252,7 +410,7 @@ export default function InboxPage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Search..." className="pl-9 h-8 text-sm bg-muted/30" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <div className="flex flex-wrap gap-1">
+          <div ref={convoListRef} onScroll={onConvoScroll} className="flex-1 overflow-y-auto flex-wrap gap-1">
             {FILTERS.map((f) => (
               <button
                 key={f}
@@ -265,7 +423,7 @@ export default function InboxPage() {
                 {f}
                 {f !== "All" && (
                   <span className="ml-1 opacity-60">
-                    {conversations?.filter((c) => c.status === f.toLowerCase().replace(" ", "_")).length}
+                    { mergedConversations?.filter((c) => c.status === f.toLowerCase().replace(" ", "_")).length}
                   </span>
                 )}
               </button>
@@ -281,7 +439,8 @@ export default function InboxPage() {
               <p className="text-xs text-muted-foreground">No conversations match your filter.</p>
             </div>
           ) : (
-            filtered?.map((convo) => (
+            filtered?.map((convo) => {
+              return (
               <button
                 key={convo.id}
                 onClick={() => selectConversation(convo.id)}
@@ -291,24 +450,24 @@ export default function InboxPage() {
                 )}
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground">
-                  {convo.caller_name?.split(" ").map((n) => n[0]).join("")}
+                  {(ghostConversations[convo.id]?.caller_name || convo?.caller_name)?.split(" ").slice(0,2).map((n) => n[0]).join("")}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <span className={cn("text-sm font-medium", convo.unread ? "text-foreground" : "text-muted-foreground")}>{convo.caller_name}</span>
-                    <span className="text-[10px] text-muted-foreground">{convo.last_message_at}</span>
+                    <span className={cn("text-sm font-medium", ghostConversations[convo.id]?.unread || convo.unread ? "text-foreground" : "text-muted-foreground")}>{convo.caller_name}</span>
+                    <span className="text-[10px] text-muted-foreground">{formatChattyTime(convo.last_message_at)}</span>
                   </div>
-                  <p className="truncate text-xs text-muted-foreground">{convo.last_message_preview}</p>
+                  <p className="truncate text-xs text-muted-foreground">{ghostConversations[convo.id]?.last_message_preview || convo.last_message_preview}</p>
                   <div className="mt-1 flex items-center gap-1.5">
-                    <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", STATUS_COLORS[convo.status])}>
-                      {STATUS_LABELS[convo.status]}
+                    <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", STATUS_COLORS[ghostConversations[convo.id]?.status || convo.status])}>
+                      {STATUS_LABELS[ghostConversations[convo.id]?.status || convo.status]}
                     </Badge>
-                    <span className="text-[10px] text-muted-foreground">{organization?.trade}</span>
                   </div>
                 </div>
-                {convo.unread && <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />}
+                {ghostConversations[convo.id]?.unread || convo.unread && <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />}
               </button>
-            ))
+            )
+            })
           )}
         </div>
       </div>
@@ -335,13 +494,32 @@ export default function InboxPage() {
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div>
-                  <h2 className="text-sm font-semibold text-foreground">{active.caller_name}</h2>
+                  <EditText
+                      value={currentGhostConversation?.caller_name || active.caller_name}
+                      placeholder="Unknown"
+                      className="text-sm font-medium text-muted-foreground"
+                      onChange={(v) => {
+                      }
+                      }
+                      onCommit={async (v) => {
+                        if (!active) {return}
+                        if (!activeConvo) {return}
+
+
+                        if (active.caller_name === v) {return}
+
+                        setGhostConversations((prev) => ({ ...prev, [activeConvo]: {...ghostConversations[activeConvo], caller_name: v } }));
+
+                        await updateConversation(activeConvo , { caller_name: v })
+
+                      }}
+                  />
                   <p className="text-xs text-muted-foreground">{active.caller_number} </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <Select
-                  value={active.status}
+                  value={currentGhostConversation?.status || active.status}
                   onValueChange={(v) => handleStatusChange(active.id, v as ConversationStatus)}
                 >
                   <SelectTrigger className="h-8 w-32 text-xs">
@@ -385,7 +563,7 @@ export default function InboxPage() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+            <div ref={messagesListRef} onScroll={onMessagesScroll} className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
               {messages.map((msg) => (
                   <div
                       key={msg.id}
@@ -411,7 +589,7 @@ export default function InboxPage() {
                     </div>
                   )}
                   <div className="mt-1 flex items-center gap-1.5">
-                    <span className="text-[10px] text-muted-foreground">{msg.created_at}</span>
+                    <span className="text-[10px] text-muted-foreground">{formatChattyTime(msg.created_at)}</span>
                     {msg.source == "automation" && (
                       <Badge variant="outline" className="text-[10px] px-1 py-0 border-primary/30 text-primary">Auto</Badge>
                     )}

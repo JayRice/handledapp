@@ -33,8 +33,13 @@ export async function middleware(request: NextRequest) {
         .maybeSingle()  ;
 
 
+
     if (isAppPage && !profile?.org_id){
       return NextResponse.redirect(new URL('/onboarding', request.url))
+    }
+    if (isOnboarding && profile?.org_id){
+      return NextResponse.redirect(new URL('/app', request.url))
+
     }
 
   }

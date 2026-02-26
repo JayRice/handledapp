@@ -57,6 +57,7 @@
     "react-resizable-panels": "^2.1.7",
     "recharts": "2.15.0",
     "sonner": "^1.7.1",
+    "stripe": "^20.4.0",
     "supabase": "^2.76.10",
     "supabase-js": "^0.0.1-security",
     "swr": "^2.4.0",

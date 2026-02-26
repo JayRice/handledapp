@@ -8,6 +8,7 @@ export type Profile = Tables["profiles"]["Row"]
 export type PhoneNumber = Tables["phone_numbers"]["Row"]
 export type Call = Tables["calls"]["Row"]
 export type Conversation = Tables["conversations"]["Row"]
+export type ConversationUpdate = Tables["conversations"]["Update"]
 export type ConversationInsert = Tables["conversations"]["Insert"]
 
 export type Message = Tables["messages"]["Row"]

@@ -1,9 +1,12 @@
 // app/api/conversations/[conversationId]/messages/route.ts
-import { NextResponse } from "next/server"
-import {createSupabaseServerClient} from "@/lib/supabase/server";
-import {Conversation, ConversationInsert, MessageInsert} from "@/types/handled";
-import {supabaseAdmin} from "@/lib/supabase/supabaseAdmin";
+import {Conversation, ConversationInsert, ConversationUpdate, MessageInsert} from "@/types/handled";
 import {sendSMS} from "@/lib/telephony/twilio";
+
+import {createSupabaseServerClient} from "@/lib/supabase/server"
+import { NextResponse } from "next/server"
+import { cookies } from "next/headers"
+import {GhostConversationType} from "@/lib/types/ghost";
+
 
 export async function POST(
     req: Request,
@@ -66,7 +69,7 @@ export async function POST(
 
         console.log("Creating Message");
 
-        const { data: message, error: messageError } = await supabaseAdmin
+        const { data: message, error: messageError } = await supabase
             .from("messages")
             .insert({
                 conversation_id: conversation.id,
@@ -74,14 +77,15 @@ export async function POST(
                 org_id:  conversation.org_id,
                 delivery_status: "delivered",
                 text: input_message,
-            } as MessageInsert);
+            } as MessageInsert)
+            .select("id, conversation_id").single();
 
 
 
         return NextResponse.json({
                 ok: true,
-                message: input_message,
-                reference_key
+                message: message,
+                reference_key,
             },
             { status: 200 })
     }catch(error){
@@ -94,4 +98,109 @@ export async function POST(
             { status: 500 })
     }
 
+}
+
+
+
+
+function jsonError(message: string, status = 400, details?: unknown) {
+    console.error("JSON Error: ", message)
+    return NextResponse.json(
+        { ok: false, error: message, details: details ?? null },
+        { status }
+    )
+}
+
+function pickAllowedUpdate(body: any): GhostConversationType {
+    const allowedKeys: (keyof GhostConversationType)[] = [
+         "status",
+         "unread",
+         "automation_active",
+         "metadata",
+         "caller_name"
+    ]
+
+    const out: GhostConversationType = {}
+    for (const k of allowedKeys) {
+        if (body?.[k] !== undefined) out[k] = body[k]
+    }
+    return out
+}
+
+export async function PATCH(
+    req: Request,
+    ctx: { params: Promise<{ conversationId: string }> }
+) {
+    try {
+        const { conversationId } = await ctx.params
+
+        if (!conversationId) return jsonError("Missing conversation id", 400)
+
+        const cookieStore = await cookies()
+        const supabase = await createSupabaseServerClient()
+
+        // 1) Auth check
+        const { data: authData, error: authErr } = await supabase.auth.getUser()
+        if (authErr) return jsonError(authErr.message, 401)
+        const user = authData.user
+        if (!user) return jsonError("Unauthorized", 401)
+
+        // 2) Parse body
+        let body: any = null
+        try {
+            body = await req.json()
+        } catch {
+            return jsonError("Invalid JSON body", 400)
+        }
+
+        const update = pickAllowedUpdate(body)
+        if (Object.keys(update).length === 0) {
+            return jsonError("No valid fields provided to update", 400)
+        }
+
+        // 3) Get user's org (scoping)
+        const { data: profile, error: profileErr } = await supabase
+            .from("profiles")
+            .select("org_id")
+            .eq("id", user.id)
+            .single()
+
+        if (profileErr) return jsonError(profileErr.message, 500)
+        if (!profile?.org_id) return jsonError("User has no organization", 403)
+
+        // 4) Update scoped to org + id
+        const { data: conversation, error: updErr } = await supabase
+            .from("conversations")
+            .update(update)
+            .eq("id", conversationId)
+            .eq("org_id", profile.org_id)
+            .select("*")
+            .single()
+
+
+        if (updErr) {
+            throw updErr.message
+        }
+
+        if (update.caller_name){
+
+            console.log("updating call: ", conversation.caller_number, update.caller_name)
+            const {data: clData, error: clError} = await supabase
+                .from("calls")
+                .update({caller_name: update.caller_name})
+                .eq("caller_number", conversation.caller_number)
+
+            if (clError) {throw clError.message}
+        }
+
+
+
+
+        if (!conversation) return jsonError("Conversation not found", 404)
+
+        return NextResponse.json({ ok: true, data: conversation, conversation_id: conversationId })
+    } catch (e: any) {
+        console.error(e)
+        return jsonError("Server error", 500, e?.message ?? e)
+    }
 }

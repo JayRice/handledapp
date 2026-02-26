@@ -1,9 +1,22 @@
-import useSWR from "swr"
+import useSWRInfinite from "swr/infinite"
 import {Conversation} from "@/types/handled";
 
-const fetcher = async <T>(url: string): Promise<T> =>
-    fetch(url).then((res) => res.json())
+import {fetcher} from "@/lib/utils/common-utilities";
 
-export function useConversations() {
-    return useSWR<Conversation[]>("/api/conversations", fetcher)
+export function useConversations(limit = 50) {
+    return useSWRInfinite<ConversationsCache>(
+        (pageIndex, previousPageData) => {
+            if (previousPageData && !previousPageData.nextCursor) return null
+
+            if (pageIndex === 0)
+                return `/api/conversations?limit=${limit}`
+
+            return `/api/conversations?limit=${limit}&cursor=${previousPageData?.nextCursor}`
+        },
+        fetcher
+    )
+}
+export type ConversationsCache = {
+    items: Conversation[]
+    nextCursor: string | null
 }
