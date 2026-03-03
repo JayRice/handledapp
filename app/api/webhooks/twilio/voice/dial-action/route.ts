@@ -126,12 +126,16 @@ export async function POST(req: NextRequest) {
                     .order("delay_seconds", { ascending: true })
                     .limit(1)
                     .single();
+                const firstAutomation = firstAuto as Automation || null;
 
-                const firstAutomation = firstAuto as Automation;
+                let nextAutomationAt;
+                if (firstAuto){
 
-                const delayMs = firstAutomation.delay_seconds * 1000;
+                    const delayMs = firstAutomation?.delay_seconds * 1000 ;
 
-                const nextAutomationAt = new Date(Date.now() + delayMs).toISOString();
+                    nextAutomationAt = new Date(Date.now() + delayMs).toISOString();
+                }
+
                 // Create Conversation
                 const { data: conversation, error: convoError } = await supabaseAdmin
                     .from("conversations")
@@ -145,7 +149,7 @@ export async function POST(req: NextRequest) {
                         caller_number: callStatus.from,
                         next_automation_at: firstAutomation ? nextAutomationAt : null,
                         automation_active: !!firstAutomation,
-                        next_automation_id: firstAutomation.id || null
+                        next_automation_id: firstAutomation?.id || null
                     } as ConversationInsert)
                     .select("*")
                     .single();

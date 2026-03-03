@@ -182,7 +182,6 @@ function BusinessTab() {
   function handleSave() {
     setSaving(true)
     setTimeout(() => {
-      updateUser({ orgName, trade })
       setSaving(false)
       toast.success("Business info updated (demo)")
     }, 600)
@@ -335,7 +334,7 @@ function NotificationsTab() {
 
 // ── Billing Tab (with mock store) ──────────────────────────────────
 function BillingTab() {
-  const { user } = useAuth()
+  const { user, organization } = useAuth()
   const { devMode } = useDevMode()
   const billing = useAppStore((s) => s.billing)
   const setBillingStatus = useAppStore((s) => s.setBillingStatus)
@@ -344,7 +343,7 @@ function BillingTab() {
   const setDefaultPaymentMethod = useAppStore((s) => s.setDefaultPaymentMethod)
   const billingStatus = billing.status
   const paymentMethods = billing.paymentMethods
-  const isPro = user?.plan === "pro"
+  const isPro = organization?.plan === "pro"
 
   const [addPmOpen, setAddPmOpen] = useState(false)
   const [pauseOpen, setPauseOpen] = useState(false)

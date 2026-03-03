@@ -25,6 +25,7 @@ export type OutboxJob = Tables["outbox_jobs"]["Row"]
 export type OrgInvite = Tables["org_invites"]["Row"]
 export type ConversationRead = Tables["conversation_reads"]["Row"]
 export type Event = Tables["events"]["Row"]
+export type BillingEvent = Tables["billing_events"]["Row"]
 
 // Optional convenience types
 export type ConversationStatus = Database["public"]["Enums"]["conversation_status"]

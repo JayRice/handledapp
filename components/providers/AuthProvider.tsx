@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
-import {Organization, Profile} from "@/types/handled";
+import {Billing, Organization, Profile} from "@/types/handled";
 import {useToast} from "@/hooks/use-toast";
 import { toast } from "sonner"
 import {OrganizationInsert} from "@/types/db";
@@ -23,6 +23,9 @@ interface AuthContextType {
     profile: Profile | null;
     updateProfile: (profileUpdate: Partial<Profile>) => Promise<{ error: Error | null }>;
     organization: Organization | null;
+
+    billing: Billing | null;
+
 
 }
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
-import { stripe } from "@/lib/stripe"
-import { supabaseAdmin } from "@/lib/supabase-admin"
+import { stripe } from "@/lib/stripe/stripe"
+import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 
 export async function POST(req: Request) {
     try {
@@ -10,7 +10,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Missing orgId or priceId" }, { status: 400 })
         }
 
-        const sb = supabaseAdmin()
+        const sb = supabaseAdmin
 
         // 1) Fetch existing billing row for org
         const { data: billing, error: billingErr } = await sb

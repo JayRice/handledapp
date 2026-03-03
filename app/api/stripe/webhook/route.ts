@@ -1,8 +1,26 @@
 import { NextResponse } from "next/server"
-import { stripe } from "@/lib/stripe"
-import { supabaseAdmin } from "@/lib/supabase-admin"
+import { stripe } from "@/lib/stripe/stripe"
+import { supabaseAdmin } from "@/lib/supabase/supabaseAdmin"
 import Stripe from "stripe"
 
+type InvoiceLoose = Stripe.Invoice & {
+    subscription?: string | Stripe.Subscription | null
+    lines?: { data?: any[] }
+}
+
+function getSubscriptionIdFromInvoice(invoice: InvoiceLoose) {
+    const direct =
+        typeof invoice.subscription === "string"
+            ? invoice.subscription
+            : invoice.subscription?.id
+
+    if (direct) return direct
+
+    // fallback: try invoice lines
+    const line = invoice.lines?.data?.find((l) => l?.subscription)
+    const sub = line?.subscription
+    return typeof sub === "string" ? sub : sub?.id ?? null
+}
 function mapStripeStatus(status: Stripe.Subscription.Status) {
     // Map to your billing_status enum values
     // Adjust these strings to match your Database enum exactly.
@@ -39,7 +57,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
     }
 
-    const sb = supabaseAdmin()
+    const sb = supabaseAdmin
 
     try {
         switch (event.type) {
@@ -84,6 +102,11 @@ export async function POST(req: Request) {
                 const priceId = sub.items.data[0]?.price?.id ?? null
                 const subItemId = sub.items.data[0]?.id ?? null
 
+                const currentPeriodEnd =
+                    typeof (sub as any).current_period_end === "number"
+                        ? new Date((sub as any).current_period_end * 1000).toISOString()
+                        : null
+
                 await sb.from("billing").upsert({
                     org_id: orgId,
                     stripe_customer_id: typeof sub.customer === "string" ? sub.customer : sub.customer?.id ?? null,
@@ -93,9 +116,7 @@ export async function POST(req: Request) {
                     status: mapStripeStatus(sub.status) as any,
                     cancel_at_period_end: sub.cancel_at_period_end ?? false,
                     trial_ends_at: sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
-                    current_period_end: sub.current_period_end
-                        ? new Date(sub.current_period_end * 1000).toISOString()
-                        : null,
+                    current_period_end: currentPeriodEnd,
                     canceled_at: sub.canceled_at ? new Date(sub.canceled_at * 1000).toISOString() : null,
                     updated_at: new Date().toISOString(),
                 } as any)
@@ -124,6 +145,11 @@ export async function POST(req: Request) {
                 const priceId = sub.items.data[0]?.price?.id ?? null
                 const subItemId = sub.items.data[0]?.id ?? null
 
+                const currentPeriodEnd =
+                    typeof (sub as any).current_period_end === "number"
+                        ? new Date((sub as any).current_period_end * 1000).toISOString()
+                        : null
+
                 await sb.from("billing").upsert({
                     org_id: billing.org_id,
                     stripe_customer_id: typeof sub.customer === "string" ? sub.customer : sub.customer?.id ?? null,
@@ -133,9 +159,7 @@ export async function POST(req: Request) {
                     status: mapStripeStatus(sub.status) as any,
                     cancel_at_period_end: sub.cancel_at_period_end ?? false,
                     trial_ends_at: sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
-                    current_period_end: sub.current_period_end
-                        ? new Date(sub.current_period_end * 1000).toISOString()
-                        : null,
+                    current_period_end: currentPeriodEnd,
                     updated_at: new Date().toISOString(),
                 } as any)
 
