@@ -33,17 +33,17 @@ export function SocialProof() {
           </p>
 
           {/* Logo row */}
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
-            {logos.map((name) => (
-              <div
-                key={name}
-                className="flex items-center gap-2 text-muted-foreground/50"
-              >
-                <div className="h-5 w-5 rounded bg-muted-foreground/10" />
-                <span className="text-sm font-medium">{name}</span>
-              </div>
-            ))}
-          </div>
+          {/*<div className="mt-8 flex flex-wrap items-center justify-center gap-x-8 gap-y-4">*/}
+          {/*  {logos.map((name) => (*/}
+          {/*    <div*/}
+          {/*      key={name}*/}
+          {/*      className="flex items-center gap-2 text-muted-foreground/50"*/}
+          {/*    >*/}
+          {/*      <div className="h-5 w-5 rounded bg-muted-foreground/10" />*/}
+          {/*      <span className="text-sm font-medium">{name}</span>*/}
+          {/*    </div>*/}
+          {/*  ))}*/}
+          {/*</div>*/}
 
           {/* Stats */}
           <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-3">

@@ -67,8 +67,8 @@ export default function DashboardPage() {
                     }}
                   />
                   <Legend />
-                  <Bar dataKey="calls" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Total calls" />
-                  <Bar dataKey="missed" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="Missed" opacity={0.7} />
+                  <Bar dataKey="calls" fill="var(--primary)" radius={[4, 4, 0, 0]} name="Total calls" />
+                  <Bar dataKey="missed" fill="var(--destructive)" radius={[4, 4, 0, 0]} name="Missed" opacity={0.7} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

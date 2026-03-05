@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Phone, ChevronLeft, PanelLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import Logo from "@/components/handled/logo";
 
 interface AppSidebarProps {
   collapsed: boolean
@@ -34,18 +35,13 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       <div className="flex items-center justify-between px-3 py-4">
         {!collapsed && (
           <Link href="/app" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
-              <Phone className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <span className="text-lg font-bold tracking-tight text-foreground">Handled</span>
+            <Logo/>
           </Link>
         )}
         {collapsed && (
-          <Link href="/app" className="mx-auto">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Phone className="h-4 w-4 text-primary-foreground" />
-            </div>
-          </Link>
+             <Link href="/app" className="mx-auto">
+               <Logo noText/>
+             </Link>
         )}
         <Button
           variant="ghost"

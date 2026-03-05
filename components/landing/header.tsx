@@ -12,6 +12,7 @@ import {
 import { Menu, Phone } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
+import Logo from "@/components/handled/logo";
 
 const navLinks = [
   { label: "How it works", href: "#how-it-works" },
@@ -43,12 +44,7 @@ export function Header() {
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 lg:px-8">
         {/* Logo */}
         <a href="#" className="flex items-center gap-2 group">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <Phone className="h-4 w-4 text-primary-foreground" />
-          </div>
-          <span className="text-lg font-bold tracking-tight text-foreground">
-            Handled
-          </span>
+          <Logo/>
         </a>
 
         {/* Desktop Nav */}
@@ -67,14 +63,14 @@ export function Header() {
         {/* Desktop CTA */}
         <div className="hidden items-center gap-3 md:flex">
           <Button variant="ghost" size="sm" className="text-muted-foreground" asChild>
-            <Link href="/sign-in">Sign in</Link>
+            <Link href="/login">Sign in</Link>
           </Button>
           <Button
             size="sm"
             className="bg-primary text-primary-foreground hover:bg-primary/90"
             asChild
           >
-            <Link href="/sign-up">Start free trial</Link>
+            <Link href="/signup">Start free trial</Link>
           </Button>
         </div>
 

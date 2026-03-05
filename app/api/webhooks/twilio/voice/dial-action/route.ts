@@ -51,6 +51,9 @@ export async function POST(req: NextRequest) {
         };
 
 
+        console.log(callStatus)
+
+
         console.log(callStatus);
 
         const missed_call =  callStatus.dialCallStatus === "no-answer" ||
